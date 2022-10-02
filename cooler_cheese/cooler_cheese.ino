@@ -7,10 +7,13 @@
 // - DHT Sensor Library: https://github.com/adafruit/DHT-sensor-library
 // - Adafruit Unified Sensor Lib: https://github.com/adafruit/Adafruit_Sensor
 
+#include "U8glib.h"
+
 #include <Adafruit_Sensor.h>
 #include <DHT.h>
 #include <DHT_U.h>
 
+U8GLIB_SH1106_128X64 u8g(13, 11, 10, 9); // SCK = 13, MOSI = 11, CS = 10, A0 = 9
 #define DHTPIN 8     // Digital pin connected to the DHT sensor 
 // Feather HUZZAH ESP8266 note: use pins 3, 4, 5, 12, 13 or 14 --
 // Pin 15 can work but DHT must be disconnected during program upload.
@@ -24,10 +27,20 @@
 //   https://learn.adafruit.com/dht/overview
 
 DHT_Unified dht(DHTPIN, DHTTYPE);
-
 uint32_t delayMS;
+int pinOut = 7;
+float tillUp = 0;
+float tillDown = 0;
 
-int pinOut = 9;
+void draw(void) {
+  // graphic commands to redraw the complete screen should be placed here
+  u8g.setFont(u8g_font_unifont);
+  //u8g.setFont(u8g_font_osb21);
+  u8g.drawStr( 0, 15, "Amu Bitu3!");
+  u8g.drawStr( 10, 50, "Amu Bitu42!");
+}
+
+
 
 void setup() {
   Serial.begin(9600);
@@ -60,38 +73,95 @@ void setup() {
   delayMS = sensor.min_delay / 1000;
 
   pinMode(pinOut, OUTPUT);
+
+
+  // flip screen, if required
+  u8g.setRot180();
+  // set SPI backup if required
+  //u8g.setHardwareBackup(u8g_backup_avr_spi);
+  // assign default color value
+  if ( u8g.getMode() == U8G_MODE_R3G3B2 ) {
+  u8g.setColorIndex(255); // white
+  }
+  else if ( u8g.getMode() == U8G_MODE_GRAY2BIT ) {
+  u8g.setColorIndex(3); // max intensity
+  }
+  else if ( u8g.getMode() == U8G_MODE_BW ) {
+  u8g.setColorIndex(1); // pixel on
+  }
+  else if ( u8g.getMode() == U8G_MODE_HICOLOR ) {
+  u8g.setHiColorByRGB(255,255,255);
+  }  
+
+
+
+
 }
 
 void loop() {
   // Delay between measurements.
   delay(delayMS);
+  float secs = millis();
   // Get temperature event and print its value.
   sensors_event_t event;
-  dht.temperature().getEvent(&event);
-  if (isnan(event.temperature)) {
-    Serial.println(F("Error reading temperature!"));
+
+
+  if (isnan(event.temperature || isnan(event.relative_humidity))) {
+    Serial.println(F("Error reading sensor!"));
   }
   else {
+
+    dht.temperature().getEvent(&event);
     Serial.print(F("Temperature: "));
     Serial.print(event.temperature);
     Serial.println(F("°C"));
     double temp;
     temp = event.temperature;
-    if (temp >= 13){
-      digitalWrite(pinOut, HIGH);
-    }
-    if (temp <= 9){
-      digitalWrite(pinOut, LOW);
-    }
-  }
-  // Get humidity event and print its value.
-  dht.humidity().getEvent(&event);
-  if (isnan(event.relative_humidity)) {
-    Serial.println(F("Error reading humidity!"));
-  }
-  else {
+
+    dht.humidity().getEvent(&event);
     Serial.print(F("Humidity: "));
     Serial.print(event.relative_humidity);
     Serial.println(F("%"));
+    double humi;
+    humi = event.relative_humidity;
+
+    if (temp >= 13){
+      digitalWrite(pinOut, HIGH);
+      tillDown = secs/1000/60;
+    }
+    if (temp <= 9){
+      digitalWrite(pinOut, LOW);
+      tillUp = secs/1000/60;
+    }
+
+    u8g.firstPage();
+    do {
+      // First Line Temperature
+      u8g.setFont(u8g_font_courR14);
+      u8g.setPrintPos(1, 14);
+      u8g.print("T: ");
+      u8g.print(temp);
+      u8g.write(0xB0);
+      u8g.print("C");
+
+      u8g.setPrintPos(1, 36);
+      u8g.print("H: ");
+      u8g.print(humi);
+      u8g.write(0x25);
+
+      // Third line Deltas
+      u8g.setPrintPos(6, 58);
+      u8g.setFont(u8g_font_6x12_67_75);
+      u8g.write(0x11);
+      u8g.setFont(u8g_font_courR10);
+      u8g.print(" ");
+      u8g.print(tillUp, 2);
+      u8g.setPrintPos(70, 58);
+      u8g.setFont(u8g_font_6x12_67_75);
+      u8g.write(0x13);
+      u8g.setFont(u8g_font_courR10);
+      u8g.print(" ");
+      u8g.print(tillDown, 2);
+    } while( u8g.nextPage() );
   }
 }
