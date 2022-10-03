@@ -8,29 +8,20 @@
 // - Adafruit Unified Sensor Lib: https://github.com/adafruit/Adafruit_Sensor
 
 #include "U8glib.h"
-
 #include <Adafruit_Sensor.h>
 #include <DHT.h>
 #include <DHT_U.h>
 
 U8GLIB_SH1106_128X64 u8g(13, 11, 10, 9); // SCK = 13, MOSI = 11, CS = 10, A0 = 9
-#define DHTPIN 8     // Digital pin connected to the DHT sensor 
-// Feather HUZZAH ESP8266 note: use pins 3, 4, 5, 12, 13 or 14 --
-// Pin 15 can work but DHT must be disconnected during program upload.
-
-// Uncomment the type of sensor in use:
+#define DHTPIN 8     // Digital pin connected to the DHT sensor
 #define DHTTYPE    DHT11     // DHT 11
-//#define DHTTYPE    DHT22     // DHT 22 (AM2302)
-//#define DHTTYPE    DHT21     // DHT 21 (AM2301)
-
-// See guide for details on sensor wiring and usage:
-//   https://learn.adafruit.com/dht/overview
-
 DHT_Unified dht(DHTPIN, DHTTYPE);
 uint32_t delayMS;
 int pinOut = 7;
-float tillUp = 0;
-float tillDown = 0;
+float lastUp = 0;
+float lastDown = 0;
+float goingUp = 0;
+float goingDown = 0;
 
 void draw(void) {
   // graphic commands to redraw the complete screen should be placed here
@@ -43,9 +34,12 @@ void draw(void) {
 
 
 void setup() {
+
   Serial.begin(9600);
-  // Initialize device.
-  dht.begin();
+
+  // TEMPERATURE AND HUMIDITY SENSOR SETUP
+  dht.begin(); // Initialize device.
+
   Serial.println(F("DHTxx Unified Sensor Example"));
   // Print temperature sensor details.
   sensor_t sensor;
@@ -69,17 +63,15 @@ void setup() {
   Serial.print  (F("Min Value:   ")); Serial.print(sensor.min_value); Serial.println(F("%"));
   Serial.print  (F("Resolution:  ")); Serial.print(sensor.resolution); Serial.println(F("%"));
   Serial.println(F("------------------------------------"));
-  // Set delay between sensor readings based on sensor details.
-  delayMS = sensor.min_delay / 1000;
+  delayMS = sensor.min_delay / 1000; // Set delay between sensor readings based on sensor details.
 
+
+  // RELAY OUTPUT SETUP
   pinMode(pinOut, OUTPUT);
 
 
-  // flip screen, if required
+  // OLED DISPLAY SETUP
   u8g.setRot180();
-  // set SPI backup if required
-  //u8g.setHardwareBackup(u8g_backup_avr_spi);
-  // assign default color value
   if ( u8g.getMode() == U8G_MODE_R3G3B2 ) {
   u8g.setColorIndex(255); // white
   }
@@ -91,26 +83,20 @@ void setup() {
   }
   else if ( u8g.getMode() == U8G_MODE_HICOLOR ) {
   u8g.setHiColorByRGB(255,255,255);
-  }  
-
-
-
-
+  }
 }
 
 void loop() {
   // Delay between measurements.
   delay(delayMS);
-  float secs = millis();
+
   // Get temperature event and print its value.
   sensors_event_t event;
-
 
   if (isnan(event.temperature || isnan(event.relative_humidity))) {
     Serial.println(F("Error reading sensor!"));
   }
   else {
-
     dht.temperature().getEvent(&event);
     Serial.print(F("Temperature: "));
     Serial.print(event.temperature);
@@ -127,11 +113,14 @@ void loop() {
 
     if (temp >= 13){
       digitalWrite(pinOut, HIGH);
-      tillDown = secs/1000/60;
+      lastUp = millis();
+      goingUp = (lastUp - lastDown) / 1000 / 60;
+
     }
     if (temp <= 9){
       digitalWrite(pinOut, LOW);
-      tillUp = secs/1000/60;
+      lastDown = millis();
+      goingDown = (lastDown - lastUp) / 1000 / 60;
     }
 
     u8g.firstPage();
@@ -155,13 +144,13 @@ void loop() {
       u8g.write(0x11);
       u8g.setFont(u8g_font_courR10);
       u8g.print(" ");
-      u8g.print(tillUp, 2);
+      u8g.print(goingUp, 2);
       u8g.setPrintPos(70, 58);
       u8g.setFont(u8g_font_6x12_67_75);
       u8g.write(0x13);
       u8g.setFont(u8g_font_courR10);
       u8g.print(" ");
-      u8g.print(tillDown, 2);
+      u8g.print(goingDown, 2);
     } while( u8g.nextPage() );
   }
 }
