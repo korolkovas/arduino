@@ -17,6 +17,7 @@ float lastUp = 0;
 float lastDown = 0;
 float goingUp = 0;
 float goingDown = 0;
+bool relayOn = false;
 
 void draw(void) {
   // graphic commands to redraw the complete screen should be placed here
@@ -109,13 +110,18 @@ void loop() {
     if (temp >= 13){
       digitalWrite(pinOut, HIGH);
       lastUp = millis();
-      goingUp = (lastUp - lastDown) / 1000 / 60;
-
+      if (!relayOn){
+        goingUp = (lastUp - lastDown) / 1000 / 60;
+      }
+      relayOn = true;      
     }
     if (temp <= 9){
       digitalWrite(pinOut, LOW);
       lastDown = millis();
-      goingDown = (lastDown - lastUp) / 1000 / 60;
+      if(relayOn){
+        goingDown = (lastDown - lastUp) / 1000 / 60;
+      }
+      relayOn = false;
     }
 
     u8g.firstPage();
