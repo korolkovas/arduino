@@ -67,7 +67,7 @@ void setup() {
 
 
   // OLED DISPLAY SETUP
-  u8g.setRot180();
+  //u8g.setRot180();
   if ( u8g.getMode() == U8G_MODE_R3G3B2 ) {
   u8g.setColorIndex(255); // white
   }
@@ -113,7 +113,7 @@ void loop() {
       if (!relayOn){
         goingUp = (lastUp - lastDown) / 1000 / 60;
       }
-      relayOn = true;      
+      relayOn = true;
     }
     if (temp <= 9){
       digitalWrite(pinOut, LOW);
@@ -128,13 +128,13 @@ void loop() {
     do {
       // First Line Temperature
       u8g.setFont(u8g_font_courR14);
-      u8g.setPrintPos(1, 14);
+      u8g.setPrintPos(7, 14);
       u8g.print("T: ");
       u8g.print(temp);
       u8g.write(0xB0);
       u8g.print("C");
 
-      u8g.setPrintPos(1, 36);
+      u8g.setPrintPos(7, 36);
       u8g.print("H: ");
       u8g.print(humi);
       u8g.write(0x25);
